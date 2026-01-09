@@ -1,21 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Project, SocialLink, UserProfile } from './types';
-import { INITIAL_PROFILE, INITIAL_PROJECTS, INITIAL_SOCIALS, ICONS } from './constants';
+import { INITIAL_PROFILE, INITIAL_PROJECTS, GLOBAL_PROJECTS, INITIAL_SOCIALS, ICONS } from './constants';
 import { generateProjectDetails, improveBio } from './geminiService';
 
 const App: React.FC = () => {
+  // State Profile dengan error handling
   const [profile, setProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('hyu_profile');
-    return saved ? JSON.parse(saved) : {
-      ...INITIAL_PROFILE,
-      name: "HYU",
-      bio: "The dread lord of the digital currents. Charting the unknown, one line of code at a time."
-    };
+    try {
+      const saved = localStorage.getItem('hyu_profile');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Error loading profile:", e);
+    }
+    return { ...INITIAL_PROFILE };
   });
 
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('hyu_projects');
-    return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
+  // State Private Projects dengan error handling
+  const [privateProjects, setPrivateProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem('hyu_projects');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Error loading projects:", e);
+    }
+    return [...INITIAL_PROJECTS];
   });
 
   const [socials] = useState<SocialLink[]>(INITIAL_SOCIALS);
@@ -25,10 +33,9 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizingBio, setIsOptimizingBio] = useState(false);
 
-  // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem('hyu_projects', JSON.stringify(projects));
-  }, [projects]);
+    localStorage.setItem('hyu_projects', JSON.stringify(privateProjects));
+  }, [privateProjects]);
 
   useEffect(() => {
     localStorage.setItem('hyu_profile', JSON.stringify(profile));
@@ -39,53 +46,101 @@ const App: React.FC = () => {
     if (!newTitle || !newUrl) return;
 
     setIsGenerating(true);
-    // AI still helps generate flavored descriptions and icons based on your title
-    const aiDetails = await generateProjectDetails(newTitle);
-    
-    const newProject: Project = {
-      id: Date.now().toString(),
-      title: newTitle,
-      url: newUrl,
-      description: aiDetails?.description || "A mysterious artifact found at sea.",
-      category: aiDetails?.category || "Uncharted",
-      icon: aiDetails?.icon || "⚓"
-    };
+    try {
+      const aiDetails = await generateProjectDetails(newTitle);
+      
+      const newProject: Project = {
+        id: Date.now().toString(),
+        title: newTitle,
+        url: newUrl,
+        description: aiDetails?.description || "A mysterious artifact found at sea.",
+        category: aiDetails?.category || "Uncharted",
+        icon: aiDetails?.icon || "⚓"
+      };
 
-    setProjects(prev => [newProject, ...prev]);
-    setNewTitle('');
-    setNewUrl('');
-    setIsAdding(false);
-    setIsGenerating(false);
+      setPrivateProjects(prev => [newProject, ...prev]);
+      setNewTitle('');
+      setNewUrl('');
+      setIsAdding(false);
+    } catch (err) {
+      console.error("Failed to add project:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleRemoveProject = (id: string) => {
-    if (confirm("Are you sure you want to throw this treasure overboard?")) {
-      setProjects(prev => prev.filter(p => p.id !== id));
+    if (confirm("Throw this treasure overboard? (It will be lost from your private stash)")) {
+      setPrivateProjects(prev => prev.filter(p => p.id !== id));
     }
   };
 
   const handleOptimizeBio = async () => {
     setIsOptimizingBio(true);
-    const betterBio = await improveBio(profile.bio);
-    if (betterBio) {
-      setProfile(prev => ({ ...prev, bio: betterBio.trim() }));
+    try {
+      const betterBio = await improveBio(profile.bio);
+      if (betterBio) {
+        setProfile(prev => ({ ...prev, bio: betterBio.trim() }));
+      }
+    } finally {
+      setIsOptimizingBio(false);
     }
-    setIsOptimizingBio(false);
   };
 
-  return (
-    <div className="min-h-screen pb-20 px-4">
-      {/* Ship's Log Status Indicator */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-amber-500/50">
-        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse-slow"></div>
-        Ship's Log Synced
+  const renderProjectCard = (project: Project, isPrivate: boolean = false) => (
+    <div 
+      key={project.id}
+      className="group relative parchment rounded-xl p-5 flex items-center gap-5 hover:-rotate-1 hover:scale-[1.02] transition-all duration-300 cursor-pointer overflow-hidden border-2 border-amber-900/20 mb-4"
+    >
+      <div className="w-14 h-14 bg-black/10 rounded-xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
+        {project.icon || '⚓'}
       </div>
+      <div className="flex-1 min-w-0 text-left">
+        <div className="flex items-center gap-2">
+          <h3 className="font-black text-xl truncate uppercase tracking-tighter text-amber-950">{project.title}</h3>
+          <span className={`text-[10px] px-2 py-0.5 rounded-md border font-bold uppercase ${isPrivate ? 'bg-blue-900/10 border-blue-900/20 text-blue-900' : 'bg-amber-900/10 border-amber-900/20 text-amber-900'}`}>
+            {project.category}
+          </span>
+        </div>
+        <p className="text-sm text-amber-900/80 mt-1 italic leading-snug">
+          {project.description}
+        </p>
+      </div>
+      
+      <div className="flex flex-col gap-2 relative z-10">
+        {isPrivate && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleRemoveProject(project.id);
+            }}
+            className="p-2 hover:bg-red-500/20 text-red-900 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <ICONS.Trash />
+          </button>
+        )}
+        <a 
+          href={project.url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="p-2 bg-amber-900/10 hover:bg-amber-900/30 text-amber-900 rounded-lg transition-colors"
+        >
+          <ICONS.Compass />
+        </a>
+      </div>
+      <a href={project.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 z-0" />
+    </div>
+  );
 
-      <header className="max-w-2xl mx-auto pt-16 text-center">
+  return (
+    <div className="min-h-screen pb-20 px-4 max-w-2xl mx-auto">
+      <header className="pt-16 text-center">
         <div className="relative inline-block group">
           <div className="w-28 h-28 rounded-full mx-auto border-4 border-amber-900 shadow-2xl overflow-hidden bg-amber-950">
             <img 
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=HyuPirate&backgroundColor=b45309`} 
+              src={profile.avatar} 
               alt={profile.name} 
               className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
             />
@@ -108,138 +163,96 @@ const App: React.FC = () => {
             disabled={isOptimizingBio}
             className="text-[10px] bg-amber-900/40 hover:bg-amber-800 text-amber-400 py-1.5 px-4 rounded-full border border-amber-500/20 flex items-center gap-1.5 transition-all uppercase tracking-widest disabled:opacity-50"
           >
-            {isOptimizingBio ? 'Consulting the Tides...' : <><ICONS.Magic /> Sharpen the Tongue</>}
+            {isOptimizingBio ? 'Summoning the Spirits...' : <><ICONS.Magic /> Enhance Bio</>}
           </button>
         </div>
 
         <div className="mt-8 flex justify-center gap-4">
           {socials.map(social => (
-            <a 
-              key={social.id} 
-              href={social.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-12 h-12 glass-dark rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:text-amber-400 transition-all border border-amber-900/50 shadow-lg"
-            >
+            <a key={social.id} href={social.url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 glass-dark rounded-full flex items-center justify-center text-2xl hover:scale-110 hover:text-amber-400 transition-all border border-amber-900/50 shadow-lg">
               {social.icon}
             </a>
           ))}
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto mt-16 space-y-6">
-        <div className="flex justify-between items-center px-2">
-          <h2 className="text-3xl pirate-title text-amber-600 gold-glow">The Captain's Loot</h2>
-          <button 
-            onClick={() => setIsAdding(!isAdding)}
-            className="text-xs bg-amber-700 hover:bg-amber-600 text-white font-bold py-2.5 px-6 rounded-lg flex items-center gap-2 transition-all shadow-xl uppercase tracking-tighter"
-          >
-            <ICONS.Plus /> {isAdding ? 'Close Ledger' : 'Stash New Booty'}
-          </button>
-        </div>
+      <main className="mt-16 space-y-12">
+        {/* SECTION: GLOBAL TREASURES */}
+        <section>
+          <h2 className="text-3xl pirate-title text-amber-600 gold-glow mb-6 px-2 text-left">Anchored Treasures</h2>
+          <div className="flex flex-col">
+            {GLOBAL_PROJECTS.length > 0 ? (
+              GLOBAL_PROJECTS.map(p => renderProjectCard(p, false))
+            ) : (
+              <p className="text-amber-100/30 italic">No global treasures found in current chart...</p>
+            )}
+          </div>
+        </section>
 
-        {isAdding && (
-          <form onSubmit={handleAddProject} className="glass-dark rounded-2xl p-6 mb-8 border-amber-500/30 animate-in fade-in zoom-in duration-300">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] uppercase text-amber-500 mb-1 ml-1 tracking-widest">Treasure Name</label>
-                <input 
-                  type="text" 
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g., The Kraken's API"
-                  className="w-full bg-black/40 border border-amber-900/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all text-amber-100 placeholder:text-amber-900/50"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase text-amber-500 mb-1 ml-1 tracking-widest">Secret Map URL</label>
-                <input 
-                  type="url" 
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-black/40 border border-amber-900/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all text-amber-100 placeholder:text-amber-900/50"
-                  required
-                />
-              </div>
-              <button 
-                type="submit" 
-                disabled={isGenerating}
-                className="w-full bg-amber-600 hover:bg-amber-500 text-black font-black py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 uppercase tracking-[0.2em]"
-              >
-                {isGenerating ? 'Summoning the Spirits...' : 'Bury the Treasure'}
-              </button>
-            </div>
-          </form>
-        )}
+        {/* SECTION: PRIVATE STASH */}
+        <section>
+          <div className="flex justify-between items-center px-2 mb-6">
+            <h2 className="text-3xl pirate-title text-amber-600 gold-glow">Your Private Stash</h2>
+            <button 
+              onClick={() => setIsAdding(!isAdding)}
+              className="text-[10px] bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all shadow-xl uppercase"
+            >
+              <ICONS.Plus /> {isAdding ? 'Close' : 'Add New'}
+            </button>
+          </div>
 
-        <div className="grid gap-4">
-          {projects.length === 0 ? (
-            <div className="text-center py-10 opacity-30 italic text-amber-100">
-              No treasure in sight... go find some booty!
-            </div>
-          ) : (
-            projects.map(project => (
-              <div 
-                key={project.id}
-                className="group relative parchment rounded-xl p-5 flex items-center gap-5 hover:-rotate-1 hover:scale-[1.02] transition-all duration-300 cursor-pointer overflow-hidden border-2 border-amber-900/20"
-              >
-                <div className="w-14 h-14 bg-black/10 rounded-xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
-                  {project.icon}
+          {isAdding && (
+            <form onSubmit={handleAddProject} className="glass-dark rounded-2xl p-6 mb-8 border-amber-500/30 animate-in fade-in zoom-in duration-300">
+              <div className="space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] uppercase text-amber-500 mb-1 ml-1 tracking-widest">Treasure Name</label>
+                  <input 
+                    type="text" 
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="The Cursed Component..."
+                    className="w-full bg-black/40 border border-amber-900/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all text-amber-100 placeholder:text-amber-900/50"
+                    required
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-black text-xl truncate uppercase tracking-tighter text-amber-950">{project.title}</h3>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-900/10 border border-amber-900/20 font-bold uppercase text-amber-900">
-                      {project.category}
-                    </span>
-                  </div>
-                  <p className="text-sm text-amber-900/80 mt-1 italic leading-snug">
-                    {project.description}
-                  </p>
+                <div>
+                  <label className="block text-[10px] uppercase text-amber-500 mb-1 ml-1 tracking-widest">Map URL</label>
+                  <input 
+                    type="url" 
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-black/40 border border-amber-900/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all text-amber-100 placeholder:text-amber-900/50"
+                    required
+                  />
                 </div>
-                
-                <div className="flex flex-col gap-2 relative z-10">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      handleRemoveProject(project.id);
-                    }}
-                    className="p-2 hover:bg-red-500/20 text-red-900 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                    title="Throw Overboard"
-                  >
-                    <ICONS.Trash />
-                  </button>
-                  <a 
-                    href={project.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2 bg-amber-900/10 hover:bg-amber-900/30 text-amber-900 rounded-lg transition-colors"
-                  >
-                    <ICONS.Compass />
-                  </a>
-                </div>
-
-                {/* Full card link for mobile */}
-                <a 
-                  href={project.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="absolute inset-0 z-0"
-                />
+                <button 
+                  type="submit" 
+                  disabled={isGenerating}
+                  className="w-full bg-amber-600 hover:bg-amber-500 text-black font-black py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 uppercase tracking-[0.2em]"
+                >
+                  {isGenerating ? 'Summoning AI...' : 'Bury the Treasure'}
+                </button>
               </div>
-            ))
+            </form>
           )}
-        </div>
+
+          <div className="flex flex-col">
+            {privateProjects.length === 0 ? (
+              <div className="text-center py-8 opacity-20 italic text-amber-100 border-2 border-dashed border-amber-900/20 rounded-xl">
+                Your personal stash is empty...
+              </div>
+            ) : (
+              privateProjects.map(p => renderProjectCard(p, true))
+            )}
+          </div>
+        </section>
       </main>
 
       <footer className="mt-20 text-center pb-12">
         <div className="w-16 h-1 bg-amber-900/20 mx-auto mb-6 rounded-full" />
         <p className="text-[10px] uppercase tracking-[0.5em] text-amber-100/40">
-          Anchored by <span className="font-black text-amber-100/60">SEA PIECE ENGINE</span>
+          Anchored by <span className="font-black text-amber-100/60">HYU PORT SYSTEM</span>
         </p>
       </footer>
     </div>
