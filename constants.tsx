@@ -7,16 +7,30 @@ export const INITIAL_PROFILE: UserProfile = {
   avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=HyuPirate&backgroundColor=b45309"
 };
 
-export const INITIAL_PROJECTS: Project[] = [
+/** 
+ * BAGIAN INI UNTUK SEMUA USER (GLOBAL)
+ * Tambahkan objek baru di dalam array ini jika ingin link terlihat oleh semua orang.
+ */
+export const GLOBAL_PROJECTS: Project[] = [
   {
     id: "figma-card-design",
     title: "Card Design",
-    description: "A master map of visual artifacts and navigation UI.",
+    description: "A master map of visual artifacts and navigation UI layout.",
     url: "https://www.figma.com/board/jw4XvwC4Lr9AVfoQctYxrt/card-design?node-id=0-1&p=f&t=LRojOxTd77FnySHH-0",
-    category: "Charts",
+    category: "Master Charts",
     icon: "🎨"
+  },
+  {
+    id: "design-board",
+    title: "Design Board",
+    description: "A collection of reference maps and visual inspirations for the voyage.",
+    url: "https://www.figma.com/board/PgzoIcu0o702QMLHDKYqjz/referensi-map?node-id=0-1&p=f&t=lBM48eqV0JQZ4D3W-0",
+    category: "Reference Maps",
+    icon: "🗺️"
   }
 ];
+
+export const INITIAL_PROJECTS: Project[] = [];
 
 export const INITIAL_SOCIALS: SocialLink[] = [
   { id: "s1", platform: "GitHub", url: "https://github.com", icon: "🐙" },
@@ -31,7 +45,7 @@ export const ICONS = {
     </svg>
   ),
   Trash: () => (
-    <svg xmlns="http://www.w3.org/2001/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg xmlns="http://www.w3.org/2001/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
     </svg>
   ),
