@@ -9,7 +9,7 @@ export const INITIAL_PROFILE: UserProfile = {
 
 /** 
  * ANCHORED TREASURES (GLOBAL)
- * Ini adalah link yang akan dilihat oleh SEMUA ORANG yang mengunjungi web Anda.
+ * Link utama yang akan selalu muncul untuk semua orang.
  */
 export const GLOBAL_PROJECTS: Project[] = [
   {
