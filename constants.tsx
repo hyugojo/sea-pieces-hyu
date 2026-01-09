@@ -8,8 +8,8 @@ export const INITIAL_PROFILE: UserProfile = {
 };
 
 /** 
- * BAGIAN INI UNTUK SEMUA USER (GLOBAL)
- * Tambahkan objek baru di dalam array ini jika ingin link terlihat oleh semua orang.
+ * ANCHORED TREASURES (GLOBAL)
+ * Ini adalah link yang akan dilihat oleh SEMUA ORANG yang mengunjungi web Anda.
  */
 export const GLOBAL_PROJECTS: Project[] = [
   {
